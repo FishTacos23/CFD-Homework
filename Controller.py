@@ -1,6 +1,7 @@
 # This is a 1D CFD Thermal Solver using Practice B
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 
 def assemble_geometry(cv_b):
@@ -51,7 +52,7 @@ def assemble_cv_values(dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc):
 
 def get_cv_geometry(x, cv_b, i, p, p_map, bc_list):
 
-    kp = p[p_map[i]]['k'](x)
+    kp = p[p_map[i]]['k'](x[i])
     s = p[p_map[i]]['q']
 
     if i == 0:
@@ -65,19 +66,19 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list):
         dx_ee = x[i + 1] - x[i] - bdx / 2
 
         kw = 0
-        ke = p[p_map[i + 1]]['k'](x)
+        ke = p[p_map[i + 1]]['k'](x[i])
 
     elif i == len(x)-1:
         bc = bc_list[1]
 
         bdx = 0
 
-        dx_ww = dx_ww = x[i] - x[i-1] - bdx / 2
+        dx_ww = x[i] - x[i-1] - bdx / 2
         dx_we = 0
         dx_ew = 0
         dx_ee = 0
 
-        kw = p[p_map[i - 1]]['k'](x)
+        kw = p[p_map[i - 1]]['k'](x[i])
         ke = 0
 
     else:
@@ -90,8 +91,8 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list):
         dx_ee = x[i+1] - x[i] - bdx / 2
         dx_ew = x[i+1] - x[i] - dx_ee
 
-        kw = p[p_map[i-1]]['k'](x)
-        ke = p[p_map[i+1]]['k'](x)
+        kw = p[p_map[i-1]]['k'](x[i])
+        ke = p[p_map[i+1]]['k'](x[i])
 
     return [dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc]
 
@@ -137,7 +138,8 @@ if __name__ == '__main__':
 
     # properties dictionary
     prop1 = {'k': lambda x: 15, 'q': 4000000}
-    prop2 = {'k': lambda x: 60, 'q': 0}
+    # prop2 = {'k': lambda x: 60, 'q': 0}
+    prop2 = {'k': lambda x: 137 * math.exp(25 * x - 2), 'q': 0}
 
     # This variable contains a set of properties for any given segment
     properties = [prop1, prop2]
@@ -146,9 +148,10 @@ if __name__ == '__main__':
     # cv_boundaries = [0, .01, .02, .03, .04, .05]
     # node_properties = [0, 0, 0, 0, 1, 1, 1]             # map cv to properties list
 
+    # use for equally spaced control volumes
     num_cvs = 20
     x_max = 0.05
-    cv_boundaries = [i * x_max / float(num_cvs) for i in xrange(num_cvs + 1)]  # x boundary locations
+    cv_boundaries = [it * x_max / float(num_cvs) for it in xrange(num_cvs + 1)]  # x boundary locations
     node_properties = [0 if y <= 0.030000000001 else 1 for y in cv_boundaries]
     node_properties.append(1)
 
