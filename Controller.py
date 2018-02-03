@@ -1,5 +1,6 @@
 # This is a 1D CFD Thermal Solver using Practice B
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def assemble_geometry(cv_b):
@@ -10,7 +11,7 @@ def assemble_geometry(cv_b):
 
     # get nodal locations
     x = [cv_b[0]]
-    for i in xrange(len(cv_b)):
+    for i in xrange(len(cv_b)-1):
         x.append((cv_b[i]+cv_b[i+1])/2)
     x.append(cv_b[-1])
 
@@ -50,7 +51,7 @@ def assemble_cv_values(dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc):
 
 def get_cv_geometry(x, cv_b, i, p, p_map, bc_list):
 
-    kp = p[p_map[i]]['k']
+    kp = p[p_map[i]]['k'](x)
     s = p[p_map[i]]['q']
 
     if i == 0:
@@ -61,22 +62,22 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list):
         dx_ww = 0
         dx_we = 0
         dx_ew = 0
-        dx_ee = x[i + 1] - x[i] - (cv_b[i + 1] - cv_b[i]) / 2
+        dx_ee = x[i + 1] - x[i] - bdx / 2
 
         kw = 0
-        ke = p[p_map[i + 1]]['k']
+        ke = p[p_map[i + 1]]['k'](x)
 
     elif i == len(x)-1:
         bc = bc_list[1]
 
         bdx = 0
 
-        dx_ww = x[i] - x[i - 1] - (cv_b[i - 1] - cv_b[i - 1]) / 2
+        dx_ww = dx_ww = x[i] - x[i-1] - bdx / 2
         dx_we = 0
         dx_ew = 0
         dx_ee = 0
 
-        kw = p[p_map[i - 1]]['k']
+        kw = p[p_map[i - 1]]['k'](x)
         ke = 0
 
     else:
@@ -84,13 +85,13 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list):
 
         bdx = (cv_b[i] - cv_b[i - 1])
 
-        dx_ww = x[i] - x[i - 1] - (cv_b[i - 1] - cv_b[i - 1]) / 2
-        dx_we = x[i] - x[i-1] - bdx / 2
-        dx_ew = x[i+1] - x[i] - bdx / 2
-        dx_ee = x[i+1] - x[i] - (cv_b[i+1] - cv_b[i]) / 2
+        dx_ww = x[i] - x[i-1] - bdx / 2
+        dx_we = x[i] - x[i-1] - dx_ww
+        dx_ee = x[i+1] - x[i] - bdx / 2
+        dx_ew = x[i+1] - x[i] - dx_ee
 
-        kw = p[p_map[i-1]]['k']
-        ke = p[p_map[i+1]]['k']
+        kw = p[p_map[i-1]]['k'](x)
+        ke = p[p_map[i+1]]['k'](x)
 
     return [dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc]
 
@@ -118,9 +119,9 @@ def solve(cv_b, bc_list, p, p_map):
         a[i, i] = ap
         b[i] = bp
 
-        if aw is not None:
+        if aw != 0:
             a[i, i-1] = -aw
-        if ae is not None:
+        if ae != 0:
             a[i, i+1] = -ae
 
     # solve mat equation
@@ -129,13 +130,13 @@ def solve(cv_b, bc_list, p, p_map):
 
     t = a.I*b
 
-    return t
+    return t, x
 
 
 if __name__ == '__main__':
 
     # properties dictionary
-    prop1 = {'k': 15, 'q': 4000000}
+    prop1 = {'k': lambda x: 15, 'q': 4000000}
     prop2 = {'k': lambda x: 60, 'q': 0}
 
     # This variable contains a set of properties for any given segment
@@ -150,4 +151,7 @@ if __name__ == '__main__':
     bound_c = {'type': 'convective', 'h': 1000, 'To': 300}
     boundaries = [bound_i, bound_c]
 
-    solve(cv_boundaries, boundaries, properties, node_properties)
+    py, px = solve(cv_boundaries, boundaries, properties, node_properties)
+
+    plt.plot(px, py)
+    plt.show()
