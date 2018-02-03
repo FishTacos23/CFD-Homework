@@ -142,9 +142,15 @@ if __name__ == '__main__':
     # This variable contains a set of properties for any given segment
     properties = [prop1, prop2]
 
-    # cv bounds
-    cv_boundaries = [0, 0.01, 0.02, 0.03, 0.04, 0.05]   # x boundary locations
-    node_properties = [0, 0, 0, 0, 1, 1, 1]             # map cv to properties list
+    # user defined boundary locations
+    # cv_boundaries = [0, .01, .02, .03, .04, .05]
+    # node_properties = [0, 0, 0, 0, 1, 1, 1]             # map cv to properties list
+
+    num_cvs = 20
+    x_max = 0.05
+    cv_boundaries = [i * x_max / float(num_cvs) for i in xrange(num_cvs + 1)]  # x boundary locations
+    node_properties = [0 if y <= 0.030000000001 else 1 for y in cv_boundaries]
+    node_properties.append(1)
 
     # This variable contains the boundary conditions
     bound_i = {'type': 'insulated'}
