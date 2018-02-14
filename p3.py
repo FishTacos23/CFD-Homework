@@ -1,4 +1,3 @@
-import scipy
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -65,7 +64,7 @@ def solve():
     x.append(x[-1] + dx/2)
     k_h = dx * k_b(x[-1] - dx / 2) * k_b(x[-1]) / (k_b(x[-1]) * dx / 2)
     a_mat[6, 5] = -2 * k_h / dx
-    a_mat[6, 6] = h - a_mat[6,5]
+    a_mat[6, 6] = h - a_mat[6, 5]
     b_vec[6] = h*T_o
 
     a_mat = np.matrix(a_mat)

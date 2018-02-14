@@ -17,7 +17,6 @@ def convergence_study(num_cv_list, x_dist_max, bc_list, p, crit):
 
         temps, x_dist = solver.solve(cv_boundaries, bc_list, p, node_properties)
         max_temp.append(temps.max())
-        print max_temp[-1]
 
     get_temps(num_cv_list[-1])
     num_cv_list.append(num_cv_list[-1]*2)
@@ -26,9 +25,10 @@ def convergence_study(num_cv_list, x_dist_max, bc_list, p, crit):
     while abs(max_temp[-1]-max_temp[-2]) > crit:
 
         num_cv_list.append(num_cv_list[-1]*2)
-        print num_cv_list[-1]
         get_temps(num_cv_list[-1])
 
+    print num_cv_list
+    print max_temp
     plt.plot(num_cv_list, max_temp)
     plt.show()
 
@@ -108,7 +108,7 @@ def prob5c():
 
     # for grid convergence study
     number_control_volumes = [5]
-    crt = 1
+    crt = 0.001
     convergence_study(number_control_volumes, x_max, boundaries, properties, crt)
 
 
