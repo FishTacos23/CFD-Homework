@@ -134,9 +134,33 @@ def prob2a():
 
 def prob2b():
 
-    num_cvs = 10240
+    max_cvs = 10240
+    ctr_vol = [5]
+    diff_list = []
+
+    def array_diff(v1, v2):
+        max_diff = 0
+        for i in xrange(len(v1)):
+            diff = math.fabs(v1[i]-v2[i])
+            if diff > max_diff:
+                max_diff = diff
+        return max_diff
+
+    t_sim, t_exact, x = prob2(ctr_vol[-1])
+    diff_list.append(array_diff(t_exact, t_sim))
+
+    # loop until max cv
+    while ctr_vol[-1] < max_cvs:
+
+        ctr_vol.append(ctr_vol[-1]*2)
+        t_sim, t_exact, x = prob2(ctr_vol[-1])
+        diff_list.append(array_diff(t_exact, t_sim))
+
+    # plot errors
+    plt.semilogx(ctr_vol, diff_list)
+    plt.show()
 
 
 if __name__ == '__main__':
 
-    prob2a()
+    prob2b()
