@@ -122,29 +122,31 @@ def solve(cv_b, bc_list, p, p_map, t_prev):
     # get geometry
     x = assemble_geometry(cv_b)
 
-    a = np.zeros((len(x), len(x)), dtype=float)
-    b = np.zeros((len(x), 1), dtype=float)
+    tdma_p = np.empty(len(x), dtype=float)
+    tdma_q = np.empty(len(x), dtype=float)
+    t = np.copy(t_prev)
 
-    # loop over each node
+    # loop over each node to assemble tdma variables
     for i in xrange(len(x)):
 
         # get cv values
-        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev)
+        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t)
         ap, aw, ae, bp = assemble_cv_values(*cv_input)
 
-        # assemble into mat
-        a[i, i] = ap
-        b[i] = bp
+        # assemble tdma variables
+        if aw == 0:
+            tdma_p[i] = ae / ap
+            tdma_q[i] = bp / ap
+        else:
+            tdma_p[i] = ae / (ap - aw * tdma_p[i - 1])
+            tdma_q[i] = (bp + aw*tdma_q[i-1]) / (ap - aw*tdma_p[i-1])
 
-        if aw != 0:
-            a[i, i-1] = -aw
-        if ae != 0:
-            a[i, i+1] = -ae
+    # loop backwards over each node to solve tdma temperatures
+    for i in xrange(len(x)-1, 0, -1):
 
-    # solve mat equation
-    a = np.matrix(a)
-    b = np.matrix(b)
+        if i == len(x)-1:
+            t[i] = tdma_q[i]
+        else:
+            t[i] = tdma_p[i]*t[i+1]+tdma_q[i]
 
-    t = a.I*b
-
-    return np.squeeze(np.asarray(t)), x
+    return t, x

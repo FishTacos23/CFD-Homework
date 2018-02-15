@@ -134,7 +134,7 @@ def prob2a():
 
 def prob2b():
 
-    num_cvs = 10240  # TODO continue here when finished with TDMA
+    num_cvs = 10240
 
 
 if __name__ == '__main__':
