@@ -1,5 +1,5 @@
 import numpy as np
-
+import math
 
 def assemble_geometry(cv_b):
     """
@@ -43,14 +43,29 @@ def assemble_cv_values(dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc):
         if bc['type'] == 'convective':
             ap += bc['h']
             b += bc['h']*bc['To']
+        if bc['type'] == 'fixed':
+            ap = 1
+            aw = 0
+            ae = 0
+            b = bc['T']
 
     return ap, aw, ae, b
 
 
-def get_cv_geometry(x, cv_b, i, p, p_map, bc_list):
+def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev):
 
     kp = p[p_map[i]]['k'](x[i])
-    s = p[p_map[i]]['q']
+
+    boltz = 0.0000000567
+    ts = t_prev[i]
+    tinf = p[p_map[i]]['T']
+
+    sp = (p[p_map[i]]['h'] + 4. * boltz * p[p_map[i]]['e'] * math.pow(ts, 3.)) * 4. / p[p_map[i]]['D']
+
+    sc = (4./p[p_map[i]]['D']) * (p[p_map[i]]['h']*(ts-tinf) +
+                                  boltz*p[p_map[i]]['e']*(math.pow(ts, 4.) - math.pow(tinf, 4.))) - sp*ts
+
+    s = -(sc + sp*ts)
 
     if i == 0:
         bc = bc_list[0]
@@ -94,7 +109,7 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list):
     return [dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc]
 
 
-def solve(cv_b, bc_list, p, p_map):
+def solve(cv_b, bc_list, p, p_map, t_prev):
     """
     This function assembles A and b then solves for T (AT = b)
     :return: iterable, T
@@ -110,7 +125,7 @@ def solve(cv_b, bc_list, p, p_map):
     for i in xrange(len(x)):
 
         # get cv values
-        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list)
+        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev)
         ap, aw, ae, bp = assemble_cv_values(*cv_input)
 
         # assemble into mat
@@ -128,4 +143,4 @@ def solve(cv_b, bc_list, p, p_map):
 
     t = a.I*b
 
-    return t, x
+    return np.squeeze(np.asarray(t)), x

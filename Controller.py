@@ -1,6 +1,7 @@
 # This is a 1D CFD Thermal Solver using Practice B
 import matplotlib.pyplot as plt
 import math
+import numpy as np
 import solver
 import p3
 
@@ -177,6 +178,68 @@ def prob1():
     exact_study(number_control_volumes, x_max, boundaries, properties, exact, max_cv)
 
 
+def prob2():
+
+    tolerance = 0.0001
+
+    # geometry basics
+    x_max = 0.02
+    number_control_volumes = 5
+
+    # This variable contains a set of properties for any given segment
+    prop1 = {'k': lambda x: 401, 'h': 1000, 'e': 0, 'T': 273, 'D': 0.003}
+    properties = [prop1]
+
+    cv_boundaries = [it * x_max / float(number_control_volumes) for it in xrange(number_control_volumes + 1)]
+    node_properties = [0]*(number_control_volumes+1)
+    node_properties.append(0)
+
+    # This variable contains the boundary conditions
+    bound_i = {'type': 'fixed', 'T': 400}
+    bound_c = {'type': 'convective_radiative', 'h': 10, 'e': 0, 'T': 273}
+    boundaries = [bound_i, bound_c]
+
+    temperature_diffs = np.ones(number_control_volumes+2, dtype=float)
+    temperature_prev = np.ones(number_control_volumes+2, dtype=float)*400.
+
+    total_temps = [temperature_prev]
+    x_pos = None
+
+    # iterate until temperature convergence is reached
+    while temperature_diffs.max() > tolerance:
+
+        # calculate temperatures
+        temperature_current, x_pos = solver.solve(cv_boundaries, boundaries, properties, node_properties,
+                                                  temperature_prev)
+
+        # get difference
+        temperature_diffs = np.absolute(temperature_current-temperature_prev)
+
+        # set previous
+        temperature_prev = temperature_current
+
+        total_temps.append(temperature_prev)
+
+    exact = []
+    t_inf = prop1['T']
+    t_b = bound_i['T']
+    n = math.sqrt(4.*prop1['h']/(prop1['k'](1.)*prop1['D']))
+
+    for x_v in x_pos:
+        t_act = (t_b-t_inf)*math.cosh(n*(x_max-x_v))/math.cosh(n*x_max)+t_inf
+        exact.append(t_act)
+
+    # for plotting final temperature vs exact temperature
+    plt.plot(x_pos, temperature_prev, 'b')
+    plt.plot(x_pos, exact, 'r--')
+    plt.show()
+
+    # # For plotting every iteration of temperature
+    # for temp in total_temps:
+    #     plt.plot(x_pos, temp)
+    # plt.show()
+
+
 if __name__ == '__main__':
 
-    prob1()
+    prob2()
