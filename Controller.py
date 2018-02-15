@@ -77,7 +77,7 @@ def prob2(number_control_volumes):
     x_max = 0.02
 
     # This variable contains a set of properties for any given segment
-    prop1 = {'k': lambda x: 401, 'h': 1000, 'e': 0, 'T': 273, 'D': 0.003}
+    prop1 = {'k': lambda x: 401, 'h': 10, 'e': 0, 'T': 273, 'D': 0.003}
     properties = [prop1]
 
     cv_boundaries = [it * x_max / float(number_control_volumes) for it in xrange(number_control_volumes + 1)]
@@ -127,8 +127,9 @@ def prob2a():
     t_sim, t_exact, x = prob2(5)
 
     # for plotting final temperature vs exact temperature
-    plt.plot(x, t_sim, 'b*')
     plt.plot(x, t_exact, 'r--')
+    plt.plot(x, t_sim, 'b*')
+    plt.legend(['CFD Method', 'Exact Soln.'])
     plt.show()
 
 
@@ -161,6 +162,56 @@ def prob2b():
     plt.show()
 
 
+def prob3():
+
+    num_cv = 100
+
+    t_conv, t_conv_exact, x = prob2(num_cv)
+
+    tolerance = 0.0001
+
+    # geometry basics
+    x_max = 0.02
+
+    # This variable contains a set of properties for any given segment
+    prop1 = {'k': lambda x: 401, 'h': 10, 'e': 1, 'T': 273, 'D': 0.003}
+    properties = [prop1]
+
+    cv_boundaries = [it * x_max / float(num_cv) for it in xrange(num_cv + 1)]
+    node_properties = [0] * (num_cv + 1)
+    node_properties.append(0)
+
+    # This variable contains the boundary conditions
+    bound_i = {'type': 'fixed', 'T': 400}
+    bound_c = {'type': 'convective_radiative', 'h': 10, 'e': 1, 'T': 273}
+    boundaries = [bound_i, bound_c]
+
+    temperature_diffs = np.ones(num_cv + 2, dtype=float)
+    temperature_prev = np.ones(num_cv + 2, dtype=float) * 400.
+
+    total_temps = [temperature_prev]
+    x_pos = None
+
+    # iterate until temperature convergence is reached
+    while temperature_diffs.max() > tolerance:
+        # calculate temperatures
+        temperature_current, x_pos = solver.solve(cv_boundaries, boundaries, properties, node_properties,
+                                                  temperature_prev)
+
+        # get difference
+        temperature_diffs = np.absolute(temperature_current - temperature_prev)
+
+        # set previous
+        temperature_prev = temperature_current
+
+        total_temps.append(temperature_prev)
+
+    plt.plot(x, temperature_prev, 'b')
+    plt.plot(x, t_conv, 'r--')
+    plt.legend(['With Radiation', 'No Radiation'])
+    plt.show()
+
+
 if __name__ == '__main__':
 
-    prob2b()
+    prob3()
