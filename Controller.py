@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import math
 import numpy as np
 import solver
-import p3
 
 
 def exact_study(num_cv_list, x_dist_max, bc_list, p, exact, max_cv):
@@ -16,7 +15,7 @@ def exact_study(num_cv_list, x_dist_max, bc_list, p, exact, max_cv):
         node_properties = [0 if y <= 0.030000000001 else 1 for y in cv_boundaries]
         node_properties.append(1)
 
-        temps, x_dist = solver.solve(cv_boundaries, bc_list, p, node_properties)
+        temps, x_dist = solver.solve(cv_boundaries, bc_list, p, node_properties, None)
         max_temp.append(temps.max())
 
     get_temps(num_cv_list[-1])
@@ -46,114 +45,6 @@ def exact_study(num_cv_list, x_dist_max, bc_list, p, exact, max_cv):
     plt.show()
 
 
-def convergence_study(num_cv_list, x_dist_max, bc_list, p, crit):
-
-    max_temp = []
-    exact = 588.117139215064
-
-    def get_temps(num):
-
-        cv_boundaries = [it * x_dist_max / float(num) for it in xrange(num + 1)]  # x boundary locations
-        node_properties = [0 if y <= 0.030000000001 else 1 for y in cv_boundaries]
-        node_properties.append(1)
-
-        temps, x_dist = solver.solve(cv_boundaries, bc_list, p, node_properties)
-        max_temp.append(temps.max())
-
-    get_temps(num_cv_list[-1])
-    num_cv_list.append(num_cv_list[-1]*2)
-    get_temps(num_cv_list[-1])
-
-    while abs(max_temp[-1]-max_temp[-2]) > crit:
-
-        num_cv_list.append(num_cv_list[-1]*2)
-        get_temps(num_cv_list[-1])
-
-    print num_cv_list
-    print max_temp
-    plt.plot(num_cv_list, max_temp)
-    plt.show()
-
-
-def prob3():
-    p3.solve()
-
-
-def prob4():
-
-    # properties dictionary
-    prop1 = {'k': lambda x: 15, 'q': 4000000}
-    prop2 = {'k': lambda x: 60, 'q': 0}
-
-    # This variable contains a set of properties for any given segment
-    properties = [prop1, prop2]
-
-    # use for equally spaced control volumes
-    num_cvs = 20
-    x_max = 0.05
-    cv_boundaries = [it * x_max / float(num_cvs) for it in xrange(num_cvs + 1)]  # x boundary locations
-    node_properties = [0 if y <= 0.030000000001 else 1 for y in cv_boundaries]
-    node_properties.append(1)
-
-    # This variable contains the boundary conditions
-    bound_i = {'type': 'insulated'}
-    bound_c = {'type': 'convective', 'h': 1000, 'To': 300}
-    boundaries = [bound_i, bound_c]
-
-    py, px = solver.solve(cv_boundaries, boundaries, properties, node_properties)
-
-    plt.plot(px, py)
-    plt.show()
-
-
-def prob5ab():
-    # properties dictionary
-    prop1 = {'k': lambda x: 15, 'q': 4000000}
-    prop2 = {'k': lambda x: 137 * math.exp(25 * x - 2), 'q': 0}
-
-    # This variable contains a set of properties for any given segment
-    properties = [prop1, prop2]
-
-    # use for equally spaced control volumes
-    num_cvs = 20
-    x_max = 0.05
-    cv_boundaries = [it * x_max / float(num_cvs) for it in xrange(num_cvs + 1)]  # x boundary locations
-    node_properties = [0 if y <= 0.030000000001 else 1 for y in cv_boundaries]
-    node_properties.append(1)
-
-    # This variable contains the boundary conditions
-    bound_i = {'type': 'insulated'}
-    bound_c = {'type': 'convective', 'h': 1000, 'To': 300}
-    boundaries = [bound_i, bound_c]
-
-    py, px = solver.solve(cv_boundaries, boundaries, properties, node_properties)
-
-    plt.plot(px, py)
-    plt.show()
-
-
-def prob5c():
-
-    # properties dictionary
-    prop1 = {'k': lambda x: 15, 'q': 4000000}
-    prop2 = {'k': lambda x: 137 * math.exp(25 * x - 2), 'q': 0}
-
-    # This variable contains a set of properties for any given segment
-    properties = [prop1, prop2]
-
-    x_max = 0.05
-
-    # This variable contains the boundary conditions
-    bound_i = {'type': 'insulated'}
-    bound_c = {'type': 'convective', 'h': 1000, 'To': 300}
-    boundaries = [bound_i, bound_c]
-
-    # for grid convergence study
-    number_control_volumes = [5]
-    crt = 0.001
-    convergence_study(number_control_volumes, x_max, boundaries, properties, crt)
-
-
 def prob1():
 
     exact = 588.117139215064
@@ -178,13 +69,12 @@ def prob1():
     exact_study(number_control_volumes, x_max, boundaries, properties, exact, max_cv)
 
 
-def prob2():
+def prob2(number_control_volumes):
 
     tolerance = 0.0001
 
     # geometry basics
     x_max = 0.02
-    number_control_volumes = 5
 
     # This variable contains a set of properties for any given segment
     prop1 = {'k': lambda x: 401, 'h': 1000, 'e': 0, 'T': 273, 'D': 0.003}
@@ -229,17 +119,24 @@ def prob2():
         t_act = (t_b-t_inf)*math.cosh(n*(x_max-x_v))/math.cosh(n*x_max)+t_inf
         exact.append(t_act)
 
+    return temperature_prev, exact, x_pos
+
+
+def prob2a():
+
+    t_sim, t_exact, x = prob2(5)
+
     # for plotting final temperature vs exact temperature
-    plt.plot(x_pos, temperature_prev, 'b')
-    plt.plot(x_pos, exact, 'r--')
+    plt.plot(x, t_sim, 'b*')
+    plt.plot(x, t_exact, 'r--')
     plt.show()
 
-    # # For plotting every iteration of temperature
-    # for temp in total_temps:
-    #     plt.plot(x_pos, temp)
-    # plt.show()
+
+def prob2b():
+
+    num_cvs = 10240  # TODO continue here when finished with TDMA
 
 
 if __name__ == '__main__':
 
-    prob2()
+    prob2a()

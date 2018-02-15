@@ -1,6 +1,7 @@
 import numpy as np
 import math
 
+
 def assemble_geometry(cv_b):
     """
     This function handles all geometry set up
@@ -56,16 +57,19 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev):
 
     kp = p[p_map[i]]['k'](x[i])
 
-    boltz = 0.0000000567
-    ts = t_prev[i]
-    tinf = p[p_map[i]]['T']
+    if t_prev is not None:
+        boltz = 0.0000000567
+        ts = t_prev[i]
+        tinf = p[p_map[i]]['T']
 
-    sp = (p[p_map[i]]['h'] + 4. * boltz * p[p_map[i]]['e'] * math.pow(ts, 3.)) * 4. / p[p_map[i]]['D']
+        sp = (p[p_map[i]]['h'] + 4. * boltz * p[p_map[i]]['e'] * math.pow(ts, 3.)) * 4. / p[p_map[i]]['D']
 
-    sc = (4./p[p_map[i]]['D']) * (p[p_map[i]]['h']*(ts-tinf) +
-                                  boltz*p[p_map[i]]['e']*(math.pow(ts, 4.) - math.pow(tinf, 4.))) - sp*ts
+        sc = (4./p[p_map[i]]['D']) * (p[p_map[i]]['h']*(ts-tinf) +
+                                      boltz*p[p_map[i]]['e']*(math.pow(ts, 4.) - math.pow(tinf, 4.))) - sp*ts
 
-    s = -(sc + sp*ts)
+        s = -(sc + sp*ts)
+    else:
+        s = p[p_map[i]]['q']
 
     if i == 0:
         bc = bc_list[0]
