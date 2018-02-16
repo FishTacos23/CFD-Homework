@@ -105,3 +105,4 @@ ENV/
 *.xml___jb_old___
 *.xml
 .idea/workspace.xml
+*.xml
