@@ -82,7 +82,7 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev):
         dx_ee = x[i + 1] - x[i] - bdx / 2
 
         kw = 0
-        ke = p[p_map[i + 1]]['k'](x[i])
+        ke = p[p_map[i + 1]]['k'](x[i+1])
 
     elif i == len(x)-1:
         bc = bc_list[1]
@@ -94,7 +94,7 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev):
         dx_ew = 0
         dx_ee = 0
 
-        kw = p[p_map[i - 1]]['k'](x[i])
+        kw = p[p_map[i - 1]]['k'](x[i-1])
         ke = 0
 
     else:
@@ -107,8 +107,8 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev):
         dx_ee = x[i+1] - x[i] - bdx / 2
         dx_ew = x[i+1] - x[i] - dx_ee
 
-        kw = p[p_map[i-1]]['k'](x[i])
-        ke = p[p_map[i+1]]['k'](x[i])
+        kw = p[p_map[i-1]]['k'](x[i-1])
+        ke = p[p_map[i+1]]['k'](x[i+1])
 
     return [dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc]
 

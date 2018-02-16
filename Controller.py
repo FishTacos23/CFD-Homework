@@ -17,7 +17,6 @@ def exact_study(num_cv_list, x_dist_max, bc_list, p, exact, max_cv):
 
         temps, x_dist = solver.solve(cv_boundaries, bc_list, p, node_properties, None)
         max_temp.append(temps.max())
-        print max_temp[-1]
 
     get_temps(num_cv_list[-1])
     num_cv_list.append(num_cv_list[-1]*2)
@@ -26,16 +25,10 @@ def exact_study(num_cv_list, x_dist_max, bc_list, p, exact, max_cv):
     while num_cv_list[-1] < max_cv:
 
         num_cv_list.append(num_cv_list[-1]*2)
-        print num_cv_list[-1]
         get_temps(num_cv_list[-1])
 
-<<<<<<< HEAD
     print num_cv_list
     print max_temp
-=======
-    plt.plot(num_cv_list, max_temp)
-    plt.show()
->>>>>>> parent of 8f5580d... fixed bug
 
     diff_temps = []
     exact_x = []
@@ -193,7 +186,6 @@ def prob3():
     bound_c = {'type': 'convective_radiative', 'h': 10, 'e': 1, 'T': 273}
     boundaries = [bound_i, bound_c]
 
-<<<<<<< HEAD
     temperature_diffs = np.ones(num_cv + 2, dtype=float)
     temperature_prev = np.ones(num_cv + 2, dtype=float) * 400.
 
@@ -218,12 +210,6 @@ def prob3():
     plt.plot(x, t_conv, 'r--')
     plt.legend(['With Radiation', 'No Radiation'])
     plt.show()
-=======
-    # for grid convergence study
-    number_control_volumes = [5]
-    crt = 1
-    convergence_study(number_control_volumes, x_max, boundaries, properties, crt)
->>>>>>> parent of 8f5580d... fixed bug
 
 
 if __name__ == '__main__':
