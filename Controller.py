@@ -45,28 +45,28 @@ def exact_study(num_cv_list, x_dist_max, bc_list, p, exact, max_cv):
     plt.show()
 
 
-def prob1():
-
-    exact = 588.117139215064
-    max_cv = 10240
-
-    # properties dictionary
-    prop1 = {'k': lambda x: 15, 'q': 4000000}
-    prop2 = {'k': lambda x: 137 * math.exp(25 * x - 2), 'q': 0}
-
-    # This variable contains a set of properties for any given segment
-    properties = [prop1, prop2]
-
-    x_max = 0.05
-
-    # This variable contains the boundary conditions
-    bound_i = {'type': 'insulated'}
-    bound_c = {'type': 'convective', 'h': 1000, 'To': 300}
-    boundaries = [bound_i, bound_c]
-
-    # for grid convergence study
-    number_control_volumes = [5]
-    exact_study(number_control_volumes, x_max, boundaries, properties, exact, max_cv)
+# def prob1():
+#
+#     exact = 588.117139215064
+#     max_cv = 10240
+#
+#     # properties dictionary
+#     prop1 = {'k': lambda x: 15, 'q': 4000000}
+#     prop2 = {'k': lambda x: 137 * math.exp(25 * x - 2), 'q': 0}
+#
+#     # This variable contains a set of properties for any given segment
+#     properties = [prop1, prop2]
+#
+#     x_max = 0.05
+#
+#     # This variable contains the boundary conditions
+#     bound_i = {'type': 'insulated'}
+#     bound_c = {'type': 'convective', 'h': 1000, 'To': 300}
+#     boundaries = [bound_i, bound_c]
+#
+#     # for grid convergence study
+#     number_control_volumes = [5]
+#     exact_study(number_control_volumes, x_max, boundaries, properties, exact, max_cv)
 
 
 def prob2(number_control_volumes):
@@ -212,6 +212,55 @@ def prob3():
     plt.show()
 
 
+def prob1():
+
+    num_cv_list = [10, 20, 40, 80]
+
+    tolerance = 0.000001
+
+    # geometry basics
+    x_max = 0.02
+
+    # This variable contains a set of properties for any given segment
+    prop1 = {'k': lambda x: 401, 'h': 10, 'e': 0, 'T': 273, 'D': 0.003}
+    properties = [prop1]
+
+    # This variable contains the boundary conditions
+    bound_i = {'type': 'fixed', 'T': 400}
+    bound_c = {'type': None}
+    boundaries = [bound_i, bound_c]
+
+    for num_cv in num_cv_list:
+
+        cv_boundaries = [it * x_max / float(num_cv) for it in xrange(num_cv + 1)]
+        node_properties = [0] * (num_cv + 1)
+        node_properties.append(0)
+
+        temperature_diffs = np.ones(num_cv + 2, dtype=float)
+        temperature_prev = np.ones(num_cv + 2, dtype=float) * 400.
+
+        counter = 0
+        total_temps = [temperature_prev]
+        x_pos = None
+
+        # iterate until temperature convergence is reached
+        while temperature_diffs.max() > tolerance:
+
+            # calculate temperatures
+            temperature_current, x_pos = solver.solve(cv_boundaries, boundaries, properties, node_properties,
+                                                      temperature_prev, method='gs', alpha=1)
+
+            # get difference
+            temperature_diffs = np.absolute(temperature_current - temperature_prev)
+
+            # set previous
+            temperature_prev = temperature_current
+            total_temps.append(temperature_prev)
+
+            counter += 1
+        print counter
+
+
 if __name__ == '__main__':
 
-    prob3()
+    prob1()
