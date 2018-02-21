@@ -212,6 +212,20 @@ def prob3():
     plt.show()
 
 
+def converged(temperature1, temperature2, method, p, x):
+
+    if method == 'max_diff':
+        return np.absolute(temperature1 - temperature2).max()
+    elif method == 'heat_flux_l23':
+        q1 = p['k'](x[-2])*(temperature1[-2]-temperature1[-3])/(x[-2]-x[-3])
+        q2 = p['k'](x[-2])*(temperature2[-2]-temperature2[-3])/(x[-2]-x[-3])
+        return math.fabs(q1-q2)
+    elif method == 'heat_flux_f0':
+        q1 = p['k'](x[1]) * (temperature1[0] - temperature1[1]) / (x[1] - x[0])
+        q2 = p['k'](x[1]) * (temperature2[0] - temperature2[1]) / (x[1] - x[0])
+        return math.fabs(q1 - q2)
+
+
 def prob1():
 
     num_cv_list = [10, 20, 40, 80]
@@ -222,11 +236,11 @@ def prob1():
     x_max = 0.02
 
     # This variable contains a set of properties for any given segment
-    prop1 = {'k': lambda x: 401, 'h': 10, 'e': 0, 'T': 273, 'D': 0.003}
+    prop1 = {'k': lambda x: 401., 'h': 10., 'e': 0, 'T': 273., 'D': 0.003}
     properties = [prop1]
 
     # This variable contains the boundary conditions
-    bound_i = {'type': 'fixed', 'T': 400}
+    bound_i = {'type': 'fixed', 'T': 400.}
     bound_c = {'type': None}
     boundaries = [bound_i, bound_c]
 
@@ -236,29 +250,32 @@ def prob1():
         node_properties = [0] * (num_cv + 1)
         node_properties.append(0)
 
-        temperature_diffs = np.ones(num_cv + 2, dtype=float)
-        temperature_prev = np.ones(num_cv + 2, dtype=float) * 400.
+        criterion = 1
+        temperature_prev = np.ones(num_cv + 2, dtype=float) * bound_i['T']
+        temp_totals = []
 
         counter = 0
-        total_temps = [temperature_prev]
-        x_pos = None
+        # x_pos = None
 
         # iterate until temperature convergence is reached
-        while temperature_diffs.max() > tolerance:
+        while criterion > tolerance:
 
             # calculate temperatures
             temperature_current, x_pos = solver.solve(cv_boundaries, boundaries, properties, node_properties,
-                                                      temperature_prev, method='gs', alpha=1)
+                                                      temperature_prev, method='gs', alpha=1.)
 
-            # get difference
-            temperature_diffs = np.absolute(temperature_current - temperature_prev)
+            criterion = converged(temperature_current, temperature_prev, 'heat_flux_f0', prop1, x_pos)
 
             # set previous
             temperature_prev = temperature_current
-            total_temps.append(temperature_prev)
+            # temp_totals.append(temperature_prev)
 
             counter += 1
         print counter
+
+        # for t in temp_totals:
+        #     plt.plot(x_pos, t)
+        # plt.show()
 
 
 if __name__ == '__main__':
