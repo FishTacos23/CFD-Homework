@@ -113,14 +113,7 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev):
     return [dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc]
 
 
-def solve(cv_b, bc_list, p, p_map, t_prev):
-    """
-    This function assembles A and b then solves for T (AT = b)
-    :return: iterable, T
-    """
-
-    # get geometry
-    x = assemble_geometry(cv_b)
+def tdma(x, cv_b, bc_list, p, p_map, t_prev):
 
     tdma_p = np.empty(len(x), dtype=float)
     tdma_q = np.empty(len(x), dtype=float)
@@ -139,14 +132,80 @@ def solve(cv_b, bc_list, p, p_map, t_prev):
             tdma_q[i] = bp / ap
         else:
             tdma_p[i] = ae / (ap - aw * tdma_p[i - 1])
-            tdma_q[i] = (bp + aw*tdma_q[i-1]) / (ap - aw*tdma_p[i-1])
+            tdma_q[i] = (bp + aw * tdma_q[i - 1]) / (ap - aw * tdma_p[i - 1])
 
     # loop backwards over each node to solve tdma temperatures
-    for i in xrange(len(x)-1, 0, -1):
+    for i in xrange(len(x) - 1, 0, -1):
 
-        if i == len(x)-1:
+        if i == len(x) - 1:
             t[i] = tdma_q[i]
         else:
-            t[i] = tdma_p[i]*t[i+1]+tdma_q[i]
+            t[i] = tdma_p[i] * t[i + 1] + tdma_q[i]
+
+    return t
+
+
+def g_s(x, cv_b, bc_list, p, p_map,  t_prev, alpha):
+
+    t = np.copy(t_prev)
+    for i in xrange(len(x)):
+
+        # get cv values
+        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t)
+        ap, aw, ae, bp = assemble_cv_values(*cv_input)
+
+        if i == 0:
+            t[i] = t[i] + alpha * ((ae * t[i + 1] + bp) / ap - t[i])
+        elif i == len(x)-1:
+            t[i] = t[i] + alpha * ((aw * t[i - 1] + bp) / ap - t[i])
+        else:
+            t[i] = t[i] + alpha * ((aw * t[i - 1] + ae * t[i + 1] + bp) / ap - t[i])
+
+    return t
+
+
+def mat(x, cv_b, p, p_map, bc_list):
+
+    a = np.zeros((len(x), len(x)), dtype=float)
+    b = np.zeros((len(x), 1), dtype=float)
+
+    # loop over each node
+    for i in xrange(len(x)):
+
+        # get cv values
+        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list, None)
+        ap, aw, ae, bp = assemble_cv_values(*cv_input)
+
+        # assemble into mat
+        a[i, i] = ap
+        b[i] = bp
+
+        if aw != 0:
+            a[i, i - 1] = -aw
+        if ae != 0:
+            a[i, i + 1] = -ae
+
+    # solve mat equation
+    a = np.matrix(a)
+    b = np.matrix(b)
+
+    return a.I * b
+
+
+def solve(cv_b, bc_list, p, p_map, t_prev, method=None, alpha=1):
+    """
+    This function assembles A and b then solves for T (AT = b)
+    :return: iterable, T
+    """
+
+    # get geometry
+    x = assemble_geometry(cv_b)
+
+    if method == 'tdma':
+        t = tdma(x, cv_b, bc_list, p, p_map, t_prev)
+    elif method == 'gs':
+        t = g_s(x, cv_b, bc_list, p, p_map,  t_prev, alpha)
+    else:
+        t = mat(x, cv_b, p, p_map, bc_list)
 
     return t, x
