@@ -17,11 +17,33 @@ def assemble_geometry(cv_b):
     return x
 
 
-def assemble_cv_values(dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc):
+def calculate_source(p, i, t_prev=None):
+    sp = 0
+    sc = 0
+
+    if 'q' in p:
+        sc += p['q']
+    if 'h' in p:
+        sp += -4. * p['h'] / p['D']
+        sc += 4. * p['h'] * p['T'] / p['D']
+    if 'e' in p:
+        if not t_prev:
+            raise ValueError('Must Choose Iterative')
+        boltzmann = 0.0000000567
+        ts = t_prev[i]
+        sp += -16.*p['e']*boltzmann*math.pow(ts, 3.)/p['D']
+        sc += 4.*(-p['e']*boltzmann*(math.pow(ts, 4.)-math.pow(p['T'], 4.))+4.*p['e']*boltzmann*math.pow(ts, 4.))/p['D']
+
+    return sc, sp
+
+
+def assemble_cv_values(x, cv_b, i, p, p_map, bc_list, t_prev):
     """
     This function calculates all the necessary values for a given cv
     :return: Ap, Aw, Ae, b
     """
+
+    dx_ww, dx_we, dx_ew, dx_ee, kp, kw, ke, bc = get_cv_geometry(x, cv_b, i, p, p_map, bc_list)
 
     # west node
     if dx_ww == 0 and dx_we == 0:
@@ -37,8 +59,10 @@ def assemble_cv_values(dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc):
         khe = (dx_ew + dx_ee) * ke * kp / (ke * dx_ew + kp * dx_ee)
         ae = khe / (dx_ew + dx_ee)
 
-    ap = aw + ae
-    b = s * bdx
+    sc, sp = calculate_source(p[p_map[i]], i, t_prev)
+
+    ap = aw + ae - sp*(dx_ew+dx_we)
+    b = sc*(dx_ew+dx_we)
 
     if bc is not None:
         if bc['type'] == 'convective':
@@ -53,36 +77,26 @@ def assemble_cv_values(dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc):
     return ap, aw, ae, b
 
 
-def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev):
+def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, practice):
 
     kp = p[p_map[i]]['k'](x[i])
 
-    if t_prev is not None:
-        boltz = 0.0000000567
-        ts = t_prev[i]
-        tinf = p[p_map[i]]['T']
-
-        sp = (p[p_map[i]]['h'] + 4. * boltz * p[p_map[i]]['e'] * math.pow(ts, 3.)) * 4. / p[p_map[i]]['D']
-
-        sc = (4./p[p_map[i]]['D']) * (p[p_map[i]]['h']*(ts-tinf) +
-                                      boltz*p[p_map[i]]['e']*(math.pow(ts, 4.) - math.pow(tinf, 4.))) - sp*ts
-
-        s = -(sc + sp*ts)
-    else:
-        s = p[p_map[i]]['q']
-
     if i == 0:
         bc = bc_list[0]
-
-        bdx = 0
-
-        dx_ww = 0
-        dx_we = 0
-        dx_ew = 0
-        dx_ee = x[i + 1] - x[i] - bdx / 2
-
         kw = 0
-        ke = p[p_map[i + 1]]['k'](x[i+1])
+        ke = p[p_map[i + 1]]['k'](x[i + 1])
+        if practice == 'A':
+            bdx = 0
+            dx_ww = 0
+            dx_we = 0
+            dx_ew = 0
+            dx_ee = x[i + 1] - x[i] - bdx / 2
+        else:
+            bdx = 0
+            dx_ww = 0
+            dx_we = 0
+            dx_ew = 0
+            dx_ee = x[i + 1] - x[i] - bdx / 2
 
     elif i == len(x)-1:
         bc = bc_list[1]
@@ -110,7 +124,7 @@ def get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t_prev):
         kw = p[p_map[i-1]]['k'](x[i-1])
         ke = p[p_map[i+1]]['k'](x[i+1])
 
-    return [dx_ww, dx_we, dx_ew, dx_ee, bdx, kp, kw, ke, s, bc]
+    return [dx_ww, dx_we, dx_ew, dx_ee, kp, kw, ke, bc]
 
 
 def tdma(x, cv_b, bc_list, p, p_map, t_prev):
@@ -123,8 +137,7 @@ def tdma(x, cv_b, bc_list, p, p_map, t_prev):
     for i in xrange(len(x)):
 
         # get cv values
-        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t)
-        ap, aw, ae, bp = assemble_cv_values(*cv_input)
+        ap, aw, ae, bp = assemble_cv_values(x, cv_b, i, p, p_map, bc_list, t_prev)
 
         # assemble tdma variables
         if aw == 0:
@@ -151,8 +164,7 @@ def g_s(x, cv_b, bc_list, p, p_map,  t_prev, alpha):
     for i in xrange(len(x)):
 
         # get cv values
-        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list, t)
-        ap, aw, ae, bp = assemble_cv_values(*cv_input)
+        ap, aw, ae, bp = assemble_cv_values(x, cv_b, i, p, p_map, bc_list, t_prev)
 
         if i == 0:
             t[i] = t[i] + alpha * ((ae * t[i + 1] + bp) / ap - t[i])
@@ -173,8 +185,7 @@ def mat(x, cv_b, p, p_map, bc_list):
     for i in xrange(len(x)):
 
         # get cv values
-        cv_input = get_cv_geometry(x, cv_b, i, p, p_map, bc_list, None)
-        ap, aw, ae, bp = assemble_cv_values(*cv_input)
+        ap, aw, ae, bp = assemble_cv_values(x, cv_b, i, p, p_map, bc_list, None)
 
         # assemble into mat
         a[i, i] = ap
@@ -192,14 +203,19 @@ def mat(x, cv_b, p, p_map, bc_list):
     return a.I * b
 
 
-def solve(cv_b, bc_list, p, p_map, t_prev, method=None, alpha=1):
+def solve(mesh, bc_list, p, p_map, method=None, t_prev=None, alpha=1, practice='B'):
     """
     This function assembles A and b then solves for T (AT = b)
     :return: iterable, T
     """
 
     # get geometry
-    x = assemble_geometry(cv_b)
+    if practice == 'A':
+        x = mesh
+        cv_b = assemble_geometry(x)
+    else:
+        cv_b = mesh
+        x = assemble_geometry(cv_b)
 
     if method == 'tdma':
         t = tdma(x, cv_b, bc_list, p, p_map, t_prev)

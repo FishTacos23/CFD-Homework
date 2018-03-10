@@ -110,5 +110,20 @@ def prob3():
         hw4_iterator(prop1, alpha, c_method, 'analytical', [400., 273., prop1['h'], prop1['k'], prop1['D']])
 
 
+def test():
+    x_max = 0.02
+    num_cv = 20
+    cv_boundaries = [it * x_max / float(num_cv) for it in xrange(num_cv + 1)]
+    bound_i = {'type': 'fixed', 'T': 400.}
+    bound_c = {'type': None}
+    boundaries = [bound_i, bound_c]
+    properties = [{'k': lambda x: 401., 'q': 100.}]
+    # properties = [{'k': lambda x: 401., 'h': 10., 'e': 1., 'T': 273., 'D': 0.003}]
+    node_properties = [0] * (num_cv + 1)
+    node_properties.append(0)
+    temperature_current, x_pos = solver.solve(cv_boundaries, boundaries, properties, node_properties, practice='A')
+    plt.plot(x_pos, temperature_current)
+    plt.show()
+
 if __name__ == '__main__':
-    prob3()
+    test()
