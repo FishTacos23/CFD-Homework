@@ -1,34 +1,51 @@
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 
 
-def assemble_cv_values(x, i, bc_list, gamma, f, scheme):
+def assemble_cv_values(x, i, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur):
     """
     This function calculates all the necessary values for a given cv
     :return: Ap, Aw, Ae, b
     """
 
     dx_ww, dx_we, dx_ew, dx_ee, bc = get_cv_geometry(x, i, bc_list)
+    sc, sp = get_sources(h, e, b, t_star, t_inf, t_sur)
 
-    if bc is not None:
+    dx = (dx_we + dx_ew)
+
+    if bc == 'fixed':
 
         ap = 1
         aw = 0
         ae = 0
-        b = bc
+        b = tb
+
+    elif bc == 'adiabatic':
+
+        aw = k / (dx_ww+dx_we)
+        ae = 0.
+        ap_o = rho*c*dt/dx
+        b = sc*dx + ap_o*t_old
+        ap = ae + aw + ap_o - sp * dx
 
     else:
 
-        dw = gamma / (dx_we + dx_ww)
-        aw = dw*func_a(scheme, f/dw) + max(f, 0)
-
-        de = gamma / (dx_ee + dx_ew)
-        ae = de*func_a(scheme, f/de) + max(-f, 0)
-
-        ap = aw + ae
-        b = 0.
+        aw = k / (dx_ww + dx_we)
+        ae = k / (dx_ee+dx_ew)
+        ap_o = rho * c * dt / dx
+        b = sc * dx + ap_o * t_old
+        ap = ae + aw + ap_o - sp * dx
 
     return ap, aw, ae, b
+
+
+def get_sources(h, e, b, t_star, t_inf, t_sur):
+
+    sigma = 0.0000000567
+    sp = -2.*(h+e*sigma*4.*math.pow(t_star, 3.))/b
+    sc = 2.*(h*t_inf+e*sigma*(4.*math.pow(t_star, 4.)+math.pow(t_sur, 4.)))/b
+    return sc, sp
 
 
 def get_cv_geometry(x, i, bc_list):
@@ -66,52 +83,41 @@ def get_cv_geometry(x, i, bc_list):
     return [dx_ww, dx_we, dx_ew, dx_ee, bc]
 
 
-def mat(x, bc_list, gamma, f, scheme):
+def mat(x, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur):
 
-    a = np.zeros((len(x), len(x)), dtype=float)
-    b = np.zeros((len(x), 1), dtype=float)
+    a_mat = np.zeros((len(x), len(x)), dtype=float)
+    b_mat = np.zeros((len(x), 1), dtype=float)
 
     # loop over each node
     for i in xrange(len(x)):
 
         # get cv values
-        ap, aw, ae, bp = assemble_cv_values(x, i, bc_list, gamma, f, scheme)
+        ap, aw, ae, bp = assemble_cv_values(x, i, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur)
 
         # assemble into mat
-        a[i, i] = ap
-        b[i] = bp
+        a_mat[i, i] = ap
+        b_mat[i] = bp
 
         if aw != 0:
-            a[i, i - 1] = -aw
+            a_mat[i, i - 1] = -aw
         if ae != 0:
-            a[i, i + 1] = -ae
+            a_mat[i, i + 1] = -ae
 
     # solve mat equation
-    a = np.matrix(a)
-    b = np.matrix(b)
+    a = np.matrix(a_mat)
+    b = np.matrix(b_mat)
 
     return a.I * b
 
 
-def func_a(scheme, p):
-    if scheme == 'central':
-        a = 1. - .5*math.fabs(p)
-    elif scheme == 'upwind':
-        a = 1.
-    elif scheme == 'hybrid':
-        a = max(0., 1. - .5*math.fabs(p))
-    elif scheme == 'power_law':
-        a = max(0., math.pow(1.-.1*math.fabs(p), 5.))
-    else:
-        raise ValueError("I'm sorry Dave, I can't do that.")
-    return a
+def solve(l, dx, bc_list, t_init, t_stop, dt, k, c, rho, tb, b, e, h, t_inf, t_sur, plt_f=False, crt=0.0001):
 
-
-def solve(x, bc_list, t_init, t_stop, dt, criterion=0.0001):
     """
     This function assembles A and b then solves for T (AT = b)
-    :param x: location of the nodes
-    :type x: ndarray
+    :param l: domain length
+    :type dx: float
+    :param dx: grid size
+    :type dx: float
     :param bc_list: [boundary condition 1, boundary condition 2]
     :type bc_list: [dict, dict]
     :param t_init: initial temperature
@@ -120,32 +126,71 @@ def solve(x, bc_list, t_init, t_stop, dt, criterion=0.0001):
     :type t_stop: float
     :param dt: time step size
     :type dt: float
-    :param criterion: convergence criterion
-    :type criterion: float
+    :param k: conduction coefficient
+    :type k: float
+    :param c: thermal properties
+    :type c: float
+    :param rho: density
+    :type rho: float
+    :param tb: boundary temperature
+    :type tb: float
+    :param b: thickness
+    :type b: float
+    :param e: emissivity
+    :type e: float
+    :param h: heat transfer coefficient
+    :type h: float
+    :param t_inf: free temperature
+    :type t_inf: float
+    :param t_sur: surrounding temperature
+    :type t_sur: float
+    :param plt_f: indicator to plot
+    :type plt_f: bool
+    :param crt: convergence criterion
+    :type crt: float
     :return: iterable, T
     """
 
+    x = np.linspace(0., l, int(l / dx))
+
     # Set Initials
-    t = np.ones(x)*t_init
+    t = np.ones(x.shape)*t_init
     t_star = np.copy(t)
     t_old = np.copy(t)
+
+    if plt_f:
+        fig, line = create_plotter(x, t)
+    else:
+        fig, line = [None, None]
 
     # Loop over time
     for i in xrange(int(t_stop/dt)):
 
         # Loop while
-        while max(np.absolute(t_star-t)) > criterion:
-
-            # calc k, sc, sp
-
-            # calc ae, aw, ap, b
+        while max(np.absolute(t_star-t)) > crt:
 
             # solve t
-            t = mat(x, bc_list, gamma, f, scheme)
+            t = mat(x, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur)
 
             # set t _ star
             t_star = np.copy(t)
 
+            # update
+            if plt_f:
+                update_plots(fig, line, t)
+
         t_old = t
 
     return np.asarray(t)
+
+
+def update_plots(fig, line, new_data):
+    line.set_ydata(new_data)
+    fig.canvas.draw()
+
+
+def create_plotter(x, t):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    line, = ax.plot(x, t)
+    return fig, line

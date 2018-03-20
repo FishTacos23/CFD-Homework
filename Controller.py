@@ -11,58 +11,41 @@ def prob_2_4():
     :return: Prints a table for values of phi, and error for different schemes and velocities, and plots of phi
     """
 
-    schemes = ['central', 'upwind', 'hybrid', 'power_law']
-    markers = ['o', '*', '+', 'v']
-
     hs = [5., 30.]
     eps = [0., 1.]
 
-    boundaries = [1., 0.]
+    bcs = ['fixed', 'adiabatic']
 
     # FIXED PROPERTIES
     rho = 2770.
     c = 875.
     k = 177.
-    length = .01
+    l = .01
     t_inf = 293.
-    t_surr = 293.
+    t_sur = 293.
     tb = 353.
     w = 1.
     b = 0.0003
+    t_init = 353.
+    crt = 0.0001
 
     # num grid
-    num_grid = 50
-
-    x = np.linspace(0., length, num_grid)
-
-    t_init = 353.
-    t = np.ones(x.shape)*t_init
+    dx = l/50
+    t_stop = 10
+    dt = 0.1
 
     for h in hs:  # LOOP OVER EACH H
         print h
 
-        for ep in eps:  # LOOP OVER EACH EPSILON
-            print ep
+        for e in eps:  # LOOP OVER EACH EPSILON
+            print e
 
-            fig, lin = create_plotter(x, t)
+            # DO GRID CONVERGENCE HERE
 
-            t_star = np.copy(t)
-            t_old = np.copy(t)
+            # DO TIME STEP CONVERGENCE HERE
 
-        #     phi_exact = analytical(x, rho, h, length, gamma)
-        #     plt.figure()
-        #     plt.plot(x, phi_exact)
-        #     for i in xrange(len(schemes)):
-        #         print schemes[i]
-        #         f = rho * h
-        #         phi_nm = solver.solve(x, boundaries, schemes[i], f, gamma)
-        #         plt.plot(x, phi_nm, markers[i])
-        #         err = 0
-        #         for j in xrange(phi_nm.shape[0]):
-        #             err += math.fabs(phi_nm[j]-phi_exact[j])
-        #         print 'Phi Values:'
-        #         print phi_nm
-        #         print 'error = ' + str(err)
+            solver.solve(l, dx, bcs, t_init, t_stop, dt, k, c, rho, tb, b, e, h, t_inf, t_sur, True, 0.0001)
+
     plt.show()
 
 
@@ -95,18 +78,6 @@ def analytical(x, h, k, w, b, l, t_inf, tb):
     soln = np.cosh(m*(l-x))*(tb-t_inf)/math.cosh(m*l) + t_inf
 
     return soln
-
-
-def update_plots(fig, line, new_data):
-    line.set_ydata(new_data)
-    fig.canvas.draw()
-
-
-def create_plotter(x, t):
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    line, = ax.plot(x, t)
-    return fig, line
 
 
 if __name__ == '__main__':
