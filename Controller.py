@@ -28,12 +28,12 @@ def prob_1_3():
         plt.plot(x, phi_exact)
         for i in xrange(len(schemes)):
             print schemes[i]
-            f = rho / u
+            f = rho * u
             phi_nm = solver.solve(x, boundaries, schemes[i], f, gamma)
             plt.plot(x, phi_nm, markers[i])
             err = 0
-            for i in xrange(phi_nm.shape[0]):
-                err += math.fabs(phi_nm[i]-phi_exact[i])
+            for j in xrange(phi_nm.shape[0]):
+                err += math.fabs(phi_nm[j]-phi_exact[j])
             print 'Phi Values:'
             print phi_nm
             print 'error = ' + str(err)
