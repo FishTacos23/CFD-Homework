@@ -107,23 +107,45 @@ def func_a(scheme, p):
     return a
 
 
-def solve(x, bc_list, scheme, f, gamma):
+def solve(x, bc_list, t_init, t_stop, dt, criterion=0.0001):
     """
     This function assembles A and b then solves for T (AT = b)
     :param x: location of the nodes
     :type x: ndarray
     :param bc_list: [boundary condition 1, boundary condition 2]
     :type bc_list: [dict, dict]
-    :param scheme: convection / diffusion calculation scheme
-    :type scheme: str
-    :param f: convective mass per unit area
-    :type f: float
-    :param gamma:
-    :type gamma: float
+    :param t_init: initial temperature
+    :type t_init: float
+    :param t_stop: final solution time
+    :type t_stop: float
+    :param dt: time step size
+    :type dt: float
+    :param criterion: convergence criterion
+    :type criterion: float
     :return: iterable, T
     """
 
-    # get geometry
-    t = mat(x, bc_list, gamma, f, scheme)
+    # Set Initials
+    t = np.ones(x)*t_init
+    t_star = np.copy(t)
+    t_old = np.copy(t)
+
+    # Loop over time
+    for i in xrange(int(t_stop/dt)):
+
+        # Loop while
+        while max(np.absolute(t_star-t)) > criterion:
+
+            # calc k, sc, sp
+
+            # calc ae, aw, ap, b
+
+            # solve t
+            t = mat(x, bc_list, gamma, f, scheme)
+
+            # set t _ star
+            t_star = np.copy(t)
+
+        t_old = t
 
     return np.asarray(t)

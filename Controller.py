@@ -5,7 +5,7 @@ import numpy as np
 import solver
 
 
-def prob_1_3():
+def prob_2_4():
 
     """
     :return: Prints a table for values of phi, and error for different schemes and velocities, and plots of phi
@@ -13,55 +13,101 @@ def prob_1_3():
 
     schemes = ['central', 'upwind', 'hybrid', 'power_law']
     markers = ['o', '*', '+', 'v']
-    us = [1., 20., 75.]
+
+    hs = [5., 30.]
+    eps = [0., 1.]
 
     boundaries = [1., 0.]
-    rho = 1.
-    gamma = 1.
-    length = 1.
-    x = np.linspace(0., length, 21)
 
-    for u in us:
-        print u
-        phi_exact = analytical(x, rho, u, length, gamma)
-        plt.figure()
-        plt.plot(x, phi_exact)
-        for i in xrange(len(schemes)):
-            print schemes[i]
-            f = rho * u
-            phi_nm = solver.solve(x, boundaries, schemes[i], f, gamma)
-            plt.plot(x, phi_nm, markers[i])
-            err = 0
-            for j in xrange(phi_nm.shape[0]):
-                err += math.fabs(phi_nm[j]-phi_exact[j])
-            print 'Phi Values:'
-            print phi_nm
-            print 'error = ' + str(err)
+    # FIXED PROPERTIES
+    rho = 2770.
+    c = 875.
+    k = 177.
+    length = .01
+    t_inf = 293.
+    t_surr = 293.
+    tb = 353.
+    w = 1.
+    b = 0.0003
+
+    # num grid
+    num_grid = 50
+
+    x = np.linspace(0., length, num_grid)
+
+    t_init = 353.
+    t = np.ones(x.shape)*t_init
+
+    for h in hs:  # LOOP OVER EACH H
+        print h
+
+        for ep in eps:  # LOOP OVER EACH EPSILON
+            print ep
+
+            fig, lin = create_plotter(x, t)
+
+            t_star = np.copy(t)
+            t_old = np.copy(t)
+
+        #     phi_exact = analytical(x, rho, h, length, gamma)
+        #     plt.figure()
+        #     plt.plot(x, phi_exact)
+        #     for i in xrange(len(schemes)):
+        #         print schemes[i]
+        #         f = rho * h
+        #         phi_nm = solver.solve(x, boundaries, schemes[i], f, gamma)
+        #         plt.plot(x, phi_nm, markers[i])
+        #         err = 0
+        #         for j in xrange(phi_nm.shape[0]):
+        #             err += math.fabs(phi_nm[j]-phi_exact[j])
+        #         print 'Phi Values:'
+        #         print phi_nm
+        #         print 'error = ' + str(err)
     plt.show()
 
 
-def analytical(x, rho, u, l, gamma):
+def analytical(x, h, k, w, b, l, t_inf, tb):
     """
 
     :param x: Position of nodes
     :type x: ndarray
-    :param rho: Density
-    :type rho: float
-    :param u: Velocity
-    :type u: float
+    :param h: coefficient of heat transfer
+    :type h: float
+    :param k: thermal conductivity
+    :type k: float
+    :param w: unit width
+    :type w: float
+    :param b: thickness of plate
+    :type b: float
     :param l: Domain Length
     :type l: float
-    :param gamma:
-    :type gamma: float
+    :param t_inf: temperature at infinity
+    :type t_inf: float
+    :param tb: boundary temperature
+    :type tb: float
     :return: temperatures for nodes using the analytical solution
     """
 
-    p = rho * u * l / gamma
+    p = 2.*w + 2.*b
+    a = w*b
+    m = math.sqrt(h*p/(k*a))
 
-    soln = 1. - (np.exp(p * x / l) - 1.) / (math.exp(p) - 1.)
+    soln = np.cosh(m*(l-x))*(tb-t_inf)/math.cosh(m*l) + t_inf
 
     return soln
 
 
+def update_plots(fig, line, new_data):
+    line.set_ydata(new_data)
+    fig.canvas.draw()
+
+
+def create_plotter(x, t):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    line, = ax.plot(x, t)
+    return fig, line
+
+
 if __name__ == '__main__':
-    prob_1_3()
+    prob_2_4()
