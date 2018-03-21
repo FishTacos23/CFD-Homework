@@ -3,14 +3,14 @@ import math
 import matplotlib.pyplot as plt
 
 
-def assemble_cv_values(x, i, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur):
+def assemble_cv_values(x, i, bc_list, h, e, b_thickness, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur):
     """
     This function calculates all the necessary values for a given cv
     :return: Ap, Aw, Ae, b
     """
 
     dx_ww, dx_we, dx_ew, dx_ee, bc = get_cv_geometry(x, i, bc_list)
-    sc, sp = get_sources(h, e, b, t_star, t_inf, t_sur)
+    sc, sp = get_sources(h, e, b_thickness, t_star, t_inf, t_sur)
 
     dx = (dx_we + dx_ew)
 
@@ -25,7 +25,7 @@ def assemble_cv_values(x, i, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt,
 
         aw = k / (dx_ww+dx_we)
         ae = 0.
-        ap_o = rho*c*dt/dx
+        ap_o = rho*c*dx/dt
         b = sc*dx + ap_o*t_old
         ap = ae + aw + ap_o - sp * dx
 
@@ -33,7 +33,7 @@ def assemble_cv_values(x, i, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt,
 
         aw = k / (dx_ww + dx_we)
         ae = k / (dx_ee+dx_ew)
-        ap_o = rho * c * dt / dx
+        ap_o = rho * c * dx / dt
         b = sc * dx + ap_o * t_old
         ap = ae + aw + ap_o - sp * dx
 
@@ -44,7 +44,7 @@ def get_sources(h, e, b, t_star, t_inf, t_sur):
 
     sigma = 0.0000000567
     sp = -2.*(h+e*sigma*4.*math.pow(t_star, 3.))/b
-    sc = 2.*(h*t_inf+e*sigma*(4.*math.pow(t_star, 4.)+math.pow(t_sur, 4.)))/b
+    sc = 2.*(h*t_inf+e*sigma*(3.*math.pow(t_star, 4.)+math.pow(t_sur, 4.)))/b
     return sc, sp
 
 
@@ -92,7 +92,7 @@ def mat(x, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur):
     for i in xrange(len(x)):
 
         # get cv values
-        ap, aw, ae, bp = assemble_cv_values(x, i, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur)
+        ap, aw, ae, bp = assemble_cv_values(x, i, bc_list, h, e, b, t_star[i], tb, t_old[i], rho, c, k, dt, t_inf, t_sur)
 
         # assemble into mat
         a_mat[i, i] = ap
@@ -104,10 +104,10 @@ def mat(x, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur):
             a_mat[i, i + 1] = -ae
 
     # solve mat equation
-    a = np.matrix(a_mat)
-    b = np.matrix(b_mat)
+    a_mat = np.matrix(a_mat)
+    b_mat = np.matrix(b_mat)
 
-    return a.I * b
+    return np.asarray(a_mat.I * b_mat).flatten()
 
 
 def solve(l, dx, bc_list, t_init, t_stop, dt, k, c, rho, tb, b, e, h, t_inf, t_sur, plt_f=False, crt=0.0001):
@@ -155,42 +155,36 @@ def solve(l, dx, bc_list, t_init, t_stop, dt, k, c, rho, tb, b, e, h, t_inf, t_s
 
     # Set Initials
     t = np.ones(x.shape)*t_init
-    t_star = np.copy(t)
-    t_old = np.copy(t)
 
-    if plt_f:
-        fig, line = create_plotter(x, t)
-    else:
-        fig, line = [None, None]
+    num_t_steps = int(t_stop/dt)
+
+    base = np.zeros(num_t_steps)
+    middle = np.zeros(num_t_steps)
+    tip = np.zeros(num_t_steps)
+    time_log = np.zeros(num_t_steps)
+    q_log = np.zeros(num_t_steps)
 
     # Loop over time
-    for i in xrange(int(t_stop/dt)):
+    for _ in xrange(num_t_steps):
+
+        t_old = np.copy(t)
+        convergence = 1.
 
         # Loop while
-        while max(np.absolute(t_star-t)) > crt:
-
-            # solve t
-            t = mat(x, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur)
+        while convergence > crt:
 
             # set t _ star
             t_star = np.copy(t)
 
-            # update
-            if plt_f:
-                update_plots(fig, line, t)
+            # solve t
+            t = mat(x, bc_list, h, e, b, t_star, tb, t_old, rho, c, k, dt, t_inf, t_sur)
 
-        t_old = t
+            convergence = max(np.absolute(t_star-t))
 
-    return np.asarray(t)
+        base[_] = t[0]
+        middle[_] = t[t.size/2]
+        tip[_] = t[-1]
+        time_log[_] = _*dt
+        q_log[_] = k*(t[0]-t[1])/(x[1]-x[0])
 
-
-def update_plots(fig, line, new_data):
-    line.set_ydata(new_data)
-    fig.canvas.draw()
-
-
-def create_plotter(x, t):
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    line, = ax.plot(x, t)
-    return fig, line
+    return t, x, base, middle, tip, q_log, time_log
